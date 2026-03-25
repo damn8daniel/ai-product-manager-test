@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#000000">
+<title>ExcuseAI — Генератор Отмазок</title>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --black:#000;--red:#EE3F2C;--white:#fff;
+  --glass-bg:rgba(255,255,255,0.04);--glass-border:rgba(255,255,255,0.12);
+  --glass-shine:linear-gradient(135deg,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0) 60%);
+}
+html{scroll-behavior:smooth}
+body{font-family:'Rubik',sans-serif;background:var(--black);color:var(--white);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+
+/* ===== CANVAS BG ===== */
+#neuralBg{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0}
+
+/* ===== NAV ===== */
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:20px 64px;background:rgba(0,0,0,0.3);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.logo{display:flex;align-items:center;gap:10px}
+.logo svg{width:32px;height:32px}
+.logo-text{font-size:22px;font-weight:800;text-transform:uppercase;letter-spacing:-0.04em}
+.nav-links{display:flex;align-items:center;gap:32px}
+.nav-links a{color:rgba(255,255,255,0.7);text-decoration:none;font-size:14px;font-weight:500;transition:color .3s}
+.nav-links a:hover{color:var(--white)}
+.clip-btn{padding:10px 22px;font-family:inherit;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .3s;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px))}
+.clip-btn-red{background:var(--red);color:var(--white)}
+.clip-btn-red:hover{filter:brightness(1.15);transform:translateY(-1px)}
+.clip-btn-white{background:var(--white);color:var(--black)}
+.clip-btn-white:hover{background:rgba(255,255,255,0.9);transform:translateY(-1px)}
+.clip-btn-glass{background:rgba(255,255,255,0.1);color:var(--white);border:1px solid rgba(255,255,255,0.15);backdrop-filter:blur(20px)}
+
+/* ===== HERO ===== */
+.hero{position:relative;z-index:1;min-height:100vh;padding:140px 64px 64px;display:flex;flex-direction:column;justify-content:space-between}
+.hero-top{max-width:700px}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:4px;background:rgba(238,63,44,0.15);border:1px solid rgba(238,63,44,0.3);font-size:12px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--red);margin-bottom:24px}
+.hero-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--red);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.hero-h1{font-size:64px;font-weight:900;text-transform:uppercase;letter-spacing:-0.04em;line-height:1.05;margin-bottom:20px}
+.hero-h1 .accent{color:var(--red)}
+.hero-sub{font-size:17px;color:rgba(255,255,255,0.6);line-height:1.6;margin-bottom:32px;max-width:500px;font-weight:400}
+.hero-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+
+/* ===== SCROLL INDICATOR ===== */
+.scroll-hint{position:absolute;bottom:100px;right:64px;display:flex;flex-direction:column;align-items:center;gap:8px;color:rgba(255,255,255,0.3);font-size:11px;letter-spacing:1px;text-transform:uppercase}
+.scroll-line{width:1px;height:48px;background:linear-gradient(to bottom,rgba(255,255,255,0.3),transparent);animation:scrollAnim 2s infinite}
+@keyframes scrollAnim{0%{transform:scaleY(1);opacity:1}100%{transform:scaleY(0);opacity:0;transform-origin:top}}
+
+/* ===== GLASS CONSULTATION CARD ===== */
+.glass-card{
+  position:relative;
+  padding:28px 32px;
+  border-radius:16px;
+  background:rgba(255,255,255,0.04);
+  backdrop-filter:blur(40px) saturate(180%);
+  -webkit-backdrop-filter:blur(40px) saturate(180%);
+  border:1px solid rgba(255,255,255,0.12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.06),inset 0 0 20px rgba(255,255,255,0.02),0 20px 60px rgba(0,0,0,0.3);
+  overflow:hidden;
+  max-width:420px;
+}
+.glass-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0) 50%);pointer-events:none;border-radius:16px}
+.glass-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:6px}
+.glass-h3{font-size:20px;font-weight:700;margin-bottom:4px;letter-spacing:-0.02em}
+.glass-desc{font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:16px}
+.glass-card .clip-btn{display:inline-flex;align-items:center;gap:8px}
+.glass-card .phone-icon{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
+
+/* ===== MAIN CONTENT ===== */
+.main{position:relative;z-index:1;background:var(--black);padding:0 64px 80px}
+
+.section-head{display:flex;align-items:center;gap:12px;margin-bottom:24px;padding-top:64px}
+.section-num{width:32px;height:32px;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px));background:var(--red);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
+.section-label{font-size:14px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:rgba(255,255,255,0.5)}
+
+/* Situation grid */
+.sit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:32px}
+.sit-card{
+  position:relative;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);
+  border-radius:12px;padding:24px 16px 18px;text-align:center;cursor:pointer;
+  transition:all .35s cubic-bezier(.4,0,.2,1);overflow:hidden;
+}
+.sit-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(238,63,44,0.08),transparent 70%);opacity:0;transition:opacity .35s}
+.sit-card:hover{border-color:rgba(238,63,44,0.3);transform:translateY(-2px)}.sit-card:hover::before{opacity:1}
+.sit-card.active{border-color:var(--red);background:rgba(238,63,44,0.06)}.sit-card.active::before{opacity:1}
+.sit-card .icon{display:flex;justify-content:center;margin-bottom:10px}
+.sit-card .icon svg{width:36px;height:36px;stroke:var(--red);stroke-width:1.5;fill:none}
+.sit-card.active .icon svg{stroke:var(--white)}
+.tone svg,.ra-icon svg{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;vertical-align:-2px}
+.verdict-icon svg{width:22px;height:22px;stroke:currentColor;stroke-width:2;fill:none}
+.btn-icon{width:18px;height:18px;stroke:currentColor;stroke-width:2;fill:none;vertical-align:-3px}
+.footer .tech svg{width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none;vertical-align:-2px}
+.sit-card .name{font-size:13px;font-weight:600;line-height:1.3}
+.sit-card .checkmark{position:absolute;top:8px;right:8px;width:20px;height:20px;clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,5px 100%,0 calc(100% - 5px));background:var(--red);display:flex;align-items:center;justify-content:center;transform:scale(0);transition:transform .3s cubic-bezier(.68,-.55,.27,1.55)}
+.sit-card.active .checkmark{transform:scale(1)}
+.sit-card .checkmark svg{width:12px;height:12px;stroke:#fff;stroke-width:2.5;fill:none}
+
+.custom-input{width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:14px 18px;color:var(--white);font-size:14px;font-family:inherit;outline:none;transition:all .3s;margin-bottom:32px}
+.custom-input::placeholder{color:rgba(255,255,255,0.2)}
+.custom-input:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(238,63,44,0.1)}
+
+/* Tones */
+.tone-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:32px}
+.tone{padding:10px 20px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:13px;font-weight:500;color:rgba(255,255,255,0.5);cursor:pointer;transition:all .3s;font-family:inherit}
+.tone:hover{border-color:rgba(255,255,255,0.15);color:rgba(255,255,255,0.8)}
+.tone.active{border-color:var(--red);color:var(--white);background:rgba(238,63,44,0.1)}
+
+/* Extras */
+.extras-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:40px}
+.ext{display:flex;align-items:center;gap:10px;padding:12px 18px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);cursor:pointer;transition:all .3s;font-size:13px;color:rgba(255,255,255,0.5)}
+.ext:hover{border-color:rgba(255,255,255,0.12)}
+.ext.active{border-color:rgba(238,63,44,0.4);color:var(--white)}
+.ext .sw{width:36px;height:20px;border-radius:10px;background:rgba(255,255,255,0.15);position:relative;transition:background .3s;flex-shrink:0}
+.ext .sw::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--white);transition:transform .3s}
+.ext.active .sw{background:var(--red)}
+.ext.active .sw::after{transform:translateX(16px)}
+
+/* Generate button */
+.gen-wrap{margin-bottom:48px}
+.gen-btn{
+  width:100%;padding:22px;border:none;font-family:inherit;font-size:16px;font-weight:700;
+  text-transform:uppercase;letter-spacing:0.05em;cursor:pointer;position:relative;overflow:hidden;
+  transition:all .3s;color:var(--white);
+  clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px));
+  background:linear-gradient(135deg,var(--red),#d42f1e);
+}
+.gen-btn:hover{filter:brightness(1.1);transform:translateY(-1px);box-shadow:0 12px 40px rgba(238,63,44,0.3)}
+.gen-btn:active{transform:scale(0.99)}
+.gen-btn:disabled{opacity:0.3;cursor:not-allowed;transform:none!important;filter:none!important;box-shadow:none!important}
+.gen-btn .btn-inner{display:flex;align-items:center;justify-content:center;gap:10px;transition:opacity .2s}
+.gen-btn.loading .btn-inner{opacity:0}
+.gen-btn .think{display:none;position:absolute;inset:0;align-items:center;justify-content:center;gap:10px}
+.gen-btn.loading .think{display:flex}
+.think-dot{width:8px;height:8px;background:#fff;animation:bounce .6s infinite}
+.think-dot:nth-child(2){animation-delay:.1s}.think-dot:nth-child(3){animation-delay:.2s}
+@keyframes bounce{0%,100%{transform:translateY(0);opacity:.3}50%{transform:translateY(-10px);opacity:1}}
+.think-text{font-size:13px;font-weight:500;text-transform:none;letter-spacing:0;animation:fade 2s infinite}
+@keyframes fade{0%,100%{opacity:.4}50%{opacity:1}}
+.load-track{position:absolute;bottom:0;left:0;height:3px;background:rgba(255,255,255,0.5);width:0;transition:width .15s}
+
+/* ===== RESULT ===== */
+.result{display:none;animation:slideUp .6s cubic-bezier(.4,0,.2,1)}
+.result.show{display:block}
+@keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+
+.result-card{
+  border-radius:16px;overflow:hidden;
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.08);
+}
+.result-glow{height:3px;background:linear-gradient(90deg,var(--red),#ff6b3d,var(--red));background-size:200%;animation:glowMove 2s linear infinite}
+@keyframes glowMove{0%{background-position:0%}100%{background-position:200%}}
+.result-body{padding:32px}
+.excuse-label{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--red);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.ai-tag{padding:3px 8px;border-radius:3px;background:rgba(238,63,44,0.15);font-size:10px}
+.excuse-text{font-size:19px;font-weight:400;line-height:1.7;min-height:60px;margin-bottom:28px;color:rgba(255,255,255,0.9)}
+.excuse-text .cursor{display:inline-block;width:2px;height:1.1em;background:var(--red);margin-left:2px;vertical-align:text-bottom;animation:blink .7s infinite}
+@keyframes blink{0%,50%{opacity:1}51%,100%{opacity:0}}
+
+/* Analysis */
+.analysis{border-top:1px solid rgba(255,255,255,0.06);padding:28px 32px}
+.analysis-head{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:20px}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.metric{padding:16px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05)}
+.metric-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.metric-name{font-size:12px;color:rgba(255,255,255,0.4);font-weight:500}
+.metric-val{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
+.metric-bar{height:3px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden}
+.metric-fill{height:100%;border-radius:2px;width:0;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+
+.tags-wrap{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px}
+.tag{font-size:11px;padding:5px 14px;border-radius:4px;font-weight:500;letter-spacing:0.02em}
+.tag-r{color:var(--red);background:rgba(238,63,44,0.1);border:1px solid rgba(238,63,44,0.2)}
+.tag-w{color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08)}
+
+.verdict-box{padding:18px;border-radius:10px;display:flex;align-items:center;gap:14px;margin-bottom:8px}
+.verdict-icon{width:44px;height:44px;clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.vt-title{font-size:15px;font-weight:700;letter-spacing:-0.01em}
+.vt-desc{font-size:12px;opacity:.6;margin-top:2px}
+.v-high{background:rgba(0,200,150,0.06);border:1px solid rgba(0,200,150,0.12)}.v-high .verdict-icon{background:rgba(0,200,150,0.15)}
+.v-mid{background:rgba(255,180,0,0.06);border:1px solid rgba(255,180,0,0.12)}.v-mid .verdict-icon{background:rgba(255,180,0,0.15)}
+.v-low{background:rgba(238,63,44,0.06);border:1px solid rgba(238,63,44,0.12)}.v-low .verdict-icon{background:rgba(238,63,44,0.15)}
+
+/* Result actions */
+.result-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:0 32px 28px}
+.ra{padding:16px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);color:rgba(255,255,255,0.7);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .3s;display:flex;flex-direction:column;align-items:center;gap:6px}
+.ra:hover{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.1);transform:translateY(-1px)}
+.ra.primary{
+  clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px));
+  background:var(--red);border:none;color:var(--white);border-radius:0;
+}
+.ra.primary:hover{filter:brightness(1.1);box-shadow:0 4px 20px rgba(238,63,44,0.3)}
+.ra .ra-icon{font-size:20px}
+
+/* Stats */
+.stats-bar{display:flex;justify-content:center;gap:48px;padding:32px;margin-top:48px;border-top:1px solid rgba(255,255,255,0.06)}
+.stat-val{font-size:28px;font-weight:900;color:var(--red);text-align:center;font-variant-numeric:tabular-nums}
+.stat-label{font-size:11px;color:rgba(255,255,255,0.25);text-align:center;margin-top:4px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px}
+
+/* Footer */
+.footer{text-align:center;padding:40px 64px;color:rgba(255,255,255,0.2);font-size:12px;border-top:1px solid rgba(255,255,255,0.04)}
+.footer .tech{display:flex;justify-content:center;gap:12px;margin-top:12px;flex-wrap:wrap}
+.footer .tech span{font-size:11px;padding:4px 12px;border-radius:4px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05)}
+
+/* Toast */
+.toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(100px);padding:14px 28px;border-radius:8px;font-size:14px;font-weight:500;opacity:0;transition:all .5s cubic-bezier(.4,0,.2,1);z-index:200;background:rgba(0,0,0,0.9);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);color:var(--white)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:768px){
+  .nav{padding:16px 24px}
+  .nav-links a{display:none}
+  .hero{padding:100px 32px 32px}
+  .hero-h1{font-size:42px}
+  .main{padding:0 32px 48px}
+  .sit-grid{grid-template-columns:1fr 1fr}
+  .metrics{grid-template-columns:1fr}
+  .result-actions{grid-template-columns:1fr 1fr}
+  .stats-bar{gap:24px}
+  .scroll-hint{display:none}
+  .glass-card{max-width:100%}
+}
+@media(max-width:480px){
+  .hero{padding:90px 20px 24px}
+  .hero-h1{font-size:34px}
+  .main{padding:0 20px 40px}
+  .nav{padding:14px 20px}
+  .sit-grid{grid-template-columns:1fr 1fr}
+  .tone-row{gap:6px}
+  .tone{padding:8px 14px;font-size:12px}
+  .result-body,.analysis{padding:20px}
+  .result-actions{padding:0 20px 20px}
+}
+</style>
+</head>
+<body>
+
+<!-- NEURAL CANVAS BACKGROUND -->
+<canvas id="neuralBg"></canvas>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="logo">
+    <svg viewBox="0 0 32 32" fill="none"><rect x="2" y="6" width="12" height="20" rx="2" stroke="#EE3F2C" stroke-width="2"/><path d="M18 8h10M18 16h10M18 24h7" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="8" cy="16" r="3" fill="#EE3F2C"/></svg>
+    <span class="logo-text">ExcuseAI</span>
+  </div>
+  <div class="nav-links">
+    <a href="#generator">Генератор</a>
+    <a href="#how">Как работает</a>
+    <a href="#">О проекте</a>
+    <button class="clip-btn clip-btn-red" onclick="document.getElementById('generator').scrollIntoView({behavior:'smooth'})">Попробовать</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-top">
+    <div class="hero-badge"><span class="dot"></span> AI-Powered Excuse Engine</div>
+    <h1 class="hero-h1">Идеальная<br><span class="accent">отмазка</span> за<br>секунды</h1>
+    <p class="hero-sub">Нейросетевой движок анализирует ситуацию, подбирает тональность и генерирует отмазку с рейтингом правдоподобности. 50+ стратегий, 5 тональностей, AI-анализ.</p>
+    <div class="hero-actions">
+      <button class="clip-btn clip-btn-red" style="padding:14px 32px;font-size:15px" onclick="document.getElementById('generator').scrollIntoView({behavior:'smooth'})"><svg class="btn-icon" viewBox="0 0 24 24"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg> Начать</button>
+      <button class="clip-btn clip-btn-glass" style="padding:14px 32px;font-size:15px" onclick="document.getElementById('how').scrollIntoView({behavior:'smooth'})"><svg class="btn-icon" viewBox="0 0 24 24"><polyline points="6,9 12,15 18,9"/></svg> Как это работает</button>
+    </div>
+  </div>
+
+  <!-- Glass card -->
+  <div class="glass-card">
+    <div class="glass-title">Quick Generate</div>
+    <div class="glass-h3">Экспресс-отмазка</div>
+    <div class="glass-desc">Нет времени настраивать? Одна кнопка — и отмазка готова.</div>
+    <button class="clip-btn clip-btn-white" onclick="quickGenerate()">
+      <svg class="phone-icon" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+      Отмазка для босса
+    </button>
+  </div>
+
+  <div class="scroll-hint">
+    <div class="scroll-line"></div>
+    scroll
+  </div>
+</section>
+
+<!-- MAIN GENERATOR -->
+<main class="main" id="generator">
+  <!-- Step 1 -->
+  <div class="section-head" id="how"><div class="section-num">1</div><div class="section-label">Выбери ситуацию</div></div>
+  <div class="sit-grid">
+    <div class="sit-card" data-sit="late" onclick="selectSit(this)">
+      <div class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></div><span class="name">Опоздал на работу</span>
+      <div class="checkmark"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></div>
+    </div>
+    <div class="sit-card" data-sit="homework" onclick="selectSit(this)">
+      <div class="icon"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/><line x1="9" y1="7" x2="16" y2="7"/><line x1="9" y1="11" x2="14" y2="11"/></svg></div><span class="name">Не сделал домашку</span>
+      <div class="checkmark"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></div>
+    </div>
+    <div class="sit-card" data-sit="birthday" onclick="selectSit(this)">
+      <div class="icon"><svg viewBox="0 0 24 24"><path d="M20 21v-8a2 2 0 00-2-2H6a2 2 0 00-2 2v8"/><path d="M4 16s1.5-2 4-2 5 2 8 2 4-2 4-2"/><line x1="2" y1="21" x2="22" y2="21"/><path d="M7 11V7a5 5 0 0110 0v4"/><line x1="12" y1="4" x2="12" y2="2"/></svg></div><span class="name">Забыл день рождения</span>
+      <div class="checkmark"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></div>
+    </div>
+    <div class="sit-card" data-sit="meeting" onclick="selectSit(this)">
+      <div class="icon"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="12.01"/></svg></div><span class="name">Пропустил встречу</span>
+      <div class="checkmark"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></div>
+    </div>
+    <div class="sit-card" data-sit="deadline" onclick="selectSit(this)">
+      <div class="icon"><svg viewBox="0 0 24 24"><path d="M12 2c0 4-4 6-4 10a4 4 0 008 0c0-4-4-6-4-10z"/><path d="M12 22a6 6 0 006-6c0-4-3-6-6-10-3 4-6 6-6 10a6 6 0 006 6z"/></svg></div><span class="name">Сорвал дедлайн</span>
+      <div class="checkmark"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></div>
+    </div>
+    <div class="sit-card" data-sit="gym" onclick="selectSit(this)">
+      <div class="icon"><svg viewBox="0 0 24 24"><path d="M6 5h12M3 9h4v6H3zM17 9h4v6h-4z"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="3" y1="12" x2="1" y2="12"/><line x1="23" y1="12" x2="21" y2="12"/></svg></div><span class="name">Прогулял тренировку</span>
+      <div class="checkmark"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></div>
+    </div>
+  </div>
+  <input class="custom-input" id="customInput" placeholder="...или опиши свою ситуацию" oninput="onCustom()">
+
+  <!-- Step 2 -->
+  <div class="section-head"><div class="section-num">2</div><div class="section-label">Тональность</div></div>
+  <div class="tone-row">
+    <button class="tone active" data-tone="business" onclick="selTone(this)"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg> Деловая</button>
+    <button class="tone" data-tone="dramatic" onclick="selTone(this)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 9s0-2 2-2 2 2 2 2"/><path d="M14 9s0-2 2-2 2 2 2 2" transform="translate(-2,0)"/><path d="M8 15c0 2 2 4 4 4s4-2 4-4"/></svg> Драматичная</button>
+    <button class="tone" data-tone="bold" onclick="selTone(this)"><svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/></svg> Наглая</button>
+    <button class="tone" data-tone="emotional" onclick="selTone(this)"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"/></svg> Душевная</button>
+    <button class="tone" data-tone="scientific" onclick="selTone(this)"><svg viewBox="0 0 24 24"><path d="M9 3v6l-4 8h14l-4-8V3"/><line x1="8" y1="3" x2="16" y2="3"/><circle cx="12" cy="17" r="1"/><circle cx="9" cy="15" r="0.5"/></svg> Научная</button>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="section-head"><div class="section-num">3</div><div class="section-label">Параметры</div></div>
+  <div class="extras-row">
+    <div class="ext active" data-extra="evidence" onclick="togExt(this)"><span class="sw"></span> С доказательствами</div>
+    <div class="ext" data-extra="apology" onclick="togExt(this)"><span class="sw"></span> С извинением</div>
+    <div class="ext" data-extra="solution" onclick="togExt(this)"><span class="sw"></span> С решением</div>
+  </div>
+
+  <!-- Generate -->
+  <div class="gen-wrap">
+    <button class="gen-btn" id="genBtn" onclick="generate()" disabled>
+      <span class="btn-inner"><svg class="btn-icon" viewBox="0 0 24 24" style="stroke:#fff"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg> Сгенерировать отмазку</span>
+      <div class="think"><div class="think-dot"></div><div class="think-dot"></div><div class="think-dot"></div><span class="think-text">Нейросеть анализирует...</span></div>
+      <div class="load-track" id="loadBar"></div>
+    </button>
+  </div>
+
+  <!-- Result -->
+  <div class="result" id="result">
+    <div class="result-card">
+      <div class="result-glow"></div>
+      <div class="result-body">
+        <div class="excuse-label"><span>Сгенерированная отмазка</span><span class="ai-tag">AI</span></div>
+        <div class="excuse-text" id="excuseText"></div>
+      </div>
+      <div class="analysis">
+        <div class="analysis-head">AI-Анализ</div>
+        <div class="metrics" id="metrics"></div>
+        <div class="tags-wrap" id="tags"></div>
+        <div class="verdict-box" id="verdict"></div>
+      </div>
+      <div class="result-actions">
+        <button class="ra" onclick="generate()"><span class="ra-icon"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;stroke-width:2;fill:none"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></span>Ещё раз</button>
+        <button class="ra" onclick="shareExcuse()"><span class="ra-icon"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;stroke-width:2;fill:none"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16,6 12,2 8,6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></span>Поделиться</button>
+        <button class="ra primary" onclick="copyExcuse()"><span class="ra-icon"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;stroke-width:2;fill:none"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span>Боссу!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div><div class="stat-val" id="sGen">0</div><div class="stat-label">Сгенерировано</div></div>
+    <div><div class="stat-val" id="sAvg">—</div><div class="stat-label">Ср. рейтинг</div></div>
+    <div><div class="stat-val" id="sBest">—</div><div class="stat-label">Лучшая</div></div>
+  </div>
+</main>
+
+<footer class="footer">
+  Создано с помощью AI-агентов &middot; Claude Code + claude-flow
+  <div class="tech">
+    <span><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="9" cy="16" r="1"/><circle cx="15" cy="16" r="1"/><path d="M8 11V7a4 4 0 018 0v4"/></svg> Claude Opus 4</span>
+    <span><svg viewBox="0 0 24 24"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg> claude-flow swarm</span>
+    <span><svg viewBox="0 0 24 24"><polyline points="16,18 22,12 16,6"/><polyline points="8,6 2,12 8,18"/><line x1="14" y1="4" x2="10" y2="20"/></svg> Vanilla JS</span>
+    <span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 017 7"/><line x1="12" y1="8" x2="12" y2="12"/></svg> Zero deps</span>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== COMBINATORIAL EXCUSE ENGINE =====
+// 5 components: intro + cause + detail + evidence + closing
+// Each has variants per situation x tone = thousands of unique combinations
+const R=a=>a[Math.floor(Math.random()*a.length)];
+const RN=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const usedHashes=new Set();
+
+const NAMES=[
+  'Иван Петрович','Михалыч','Марья Ивановна','сосед сверху','коллега из отдела','тётя Люда',
+  'дядя Серёжа','бабушка','мама','друг детства','Олег из соседнего подъезда',
+  'Наталья Сергеевна из УК','Андрей Викторович','Светлана Анатольевна','папа',
+  'двоюродный брат','тёща','свекровь','сестра жены','начальник охраны','консьержка Валентина',
+  'участковый','сантехник Василий','электрик из ДЭЗа','курьер','водитель такси',
+  'инспектор ГИБДД','врач скорой помощи','пожарный','сосед с первого этажа',
+  'Петров из бухгалтерии','Ольга Дмитриевна из HR','стажёр Максим','тимлид',
+  'продакт-менеджер','Людмила Павловна из приёмной','дежурный по подъезду','племянница',
+  'крёстная','однокурсник Женя','бывший коллега Артём','репетитор ребёнка',
+  'тренер по плаванию','ветеринар','аптекарша с первого этажа','Геннадий Степанович из гаража',
+  'почтальон','страховой агент','риелтор','нотариус','адвокат знакомый',
+  'мастер из сервиса','дворник','охранник паркинга','бариста из кофейни напротив',
+  'кассирша из «Пятёрочки»','таксист Рустам','автомеханик Саня','зубной техник',
+  'массажист','тётя из МФЦ','инженер провайдера','монтажник кондиционеров',
+  'мастер по стиральным машинам','сосед по даче','председатель ТСЖ','управдом',
+  'бригадир ремонтников','дизайнер интерьеров','грузчик','курьер «Яндекс.Еды»',
+  'оператор колл-центра','менеджер банка','коллектор','судебный пристав',
+  'сотрудник МЧС','волонтёр из приюта','собачник с площадки','фельдшер из поликлиники',
+  'медсестра','фармацевт','логопед ребёнка','воспитательница из садика',
+  'классный руководитель','завуч','директор школы','тренер сына по футболу',
+  'психолог','диетолог','остеопат','Ашот из шиномонтажа','Борис Аркадьевич из совета дома',
+  'соседка с собакой','старшая по подъезду','бабушка с лавочки','девушка с ресепшена',
+  'администратор клиники','кондуктор автобуса','машинист электрички',
+  'контролёр в метро','продавец цветов','мастер маникюра жены','парикмахер',
+  'Фёдор Палыч из соседнего отдела','замдиректора','главбух','юрист компании'
+];
+const TIMES=[
+  'в 5:47 утра','в 6:12','около 7 утра','в полшестого','посреди ночи','в 4 часа утра',
+  'под утро, часа в 3','ближе к рассвету','в 6:30','без четверти семь','в начале восьмого',
+  'в 5 утра','ровно в полночь','около двух ночи','в 3:15 ночи','в половине пятого утра',
+  'на рассвете','в 7:45','в начале девятого','в районе шести','чуть позже полуночи',
+  'в 4:30','ближе к пяти утра','в 6:55','в самый разгар ночи','около четырёх утра',
+  'за час до будильника','в 2:20 ночи','перед самым выходом из дома','в 7:03',
+  'в начале шестого','ещё затемно','когда все нормальные люди спят','в предрассветных сумерках',
+  'в 5:15','между тремя и четырьмя ночи','в момент пробуждения','ровно в шесть',
+  'в 8:10','в начале десятого','незадолго до выхода','в 6:40',
+  'в разгар утренней суеты','буквально перед отъездом','в 3:47 ночи',
+  'за полчаса до выхода','в 7:20','когда уже собирался выходить',
+  'в 4:58','в 5:33','в самое неподходящее время','глубокой ночью','на заре'
+];
+const PLACES=[
+  'на Ленинградке','на Садовом','на третьем кольце','на выезде из двора','у перекрёстка',
+  'на светофоре','у метро','на парковке','возле дома','в переулке','на развязке',
+  'на объездной','на Тверской','на Кутузовском','на Новом Арбате','на Варшавке',
+  'на проспекте Мира','у Белорусского вокзала','на Таганке','на Полянке',
+  'у Курского вокзала','на Бульварном кольце','на Пресне','на набережной',
+  'у Парка Культуры','на Арбате','в районе Сокольников','на Профсоюзной',
+  'на Каширке','у Павелецкого вокзала','на Волгоградке','на Щёлковском шоссе',
+  'на Ярославке','на Дмитровке','у метро Аэропорт','на Беговой',
+  'в районе Строгино','на Рублёвке','на Можайке','у ВДНХ','на Марксистской',
+  'на Люсиновской','у Киевского вокзала','на Нахимовском','на Севастопольском',
+  'около Речного вокзала','на Алтуфьевском','на Сущёвском валу','у Савёловского',
+  'на Шаболовке','в Хамовниках','на Остоженке','у Красных ворот','на Маросейке',
+  'на Мясницкой','у Чистых прудов','на Покровке','в Замоскворечье','на Пятницкой',
+  'на Большой Ордынке','у Третьяковки','на Якиманке','около ЗИЛа','на Автозаводской',
+  'у Нагатинской','на Коломенской','в Братеево','на Люблинской','у Выхино',
+  'на Рязанском проспекте','на Энтузиастов','на Перовской','у Новогиреево',
+  'на Измайловском','в Гольяново','на Открытом шоссе','на Бабушкинской',
+  'у Медведково','в Отрадном','на Свиблово','у Ботанического сада'
+];
+const DURATIONS=[
+  'минут 40','около часа','полтора часа','два часа','минут 50','час с лишним',
+  'почти два часа','35 минут','больше часа','минут 20','примерно 45 минут',
+  'часа три','без малого два часа','минут 25','около получаса','часов пять',
+  'весь день','всю ночь','часа полтора-два','минут 15','добрых два часа',
+  'больше трёх часов','почти четыре часа','с утра и до обеда','около 40 минут',
+  'не меньше часа','битый час','с лишним два часа','минут этак 55',
+  'целую вечность — ну, минут 30','часа два с половиной','где-то час двадцать',
+  'минут 35-40','пару часов','с раннего утра','чуть больше часа','около двух с половиной часов',
+  'до самого вечера','часов шесть','весь рабочий день','минут 10, но показалось — вечность',
+  'три с лишним часа','с перерывами — часов пять','до глубокой ночи',
+  'ровно час сорок семь','пока не стемнело','до закрытия','с обеда до вечера',
+  'с половины седьмого до девяти','несколько часов подряд','около суток'
+];
+const DOCS=[
+  'справку','фотографии','скриншот','видеозапись','протокол','уведомление от УК',
+  'выписку','чек','квитанцию','запись с камеры','переписку','SMS-подтверждение',
+  'акт о затоплении','справку от врача','больничный лист','заключение эксперта',
+  'протокол ДТП','страховой акт','уведомление от провайдера','электронный билет',
+  'посадочный талон','выписку из ЕГРН','справку из полиции','талон из травмпункта',
+  'рецепт от врача','результаты анализов','заключение стоматолога','акт выполненных работ',
+  'накладную','товарный чек','банковскую выписку','скриншот переписки с поддержкой',
+  'логи сервера','скриншот ошибки','запись разговора','копию заявления','распечатку звонков',
+  'справку из ЖЭКа','акт от электрика','заключение сантехника','фото с геолокацией',
+  'данные навигатора','историю поездок в такси','отчёт фитнес-трекера',
+  'скриншот push-уведомления','письмо от страховой','ответ из техподдержки',
+  'копию обращения в МЧС','талон к врачу','направление на обследование',
+  'справку из школы','объяснительную от соседей','акт осмотра помещения',
+  'заключение оценщика','уведомление о задержке доставки','трекинг-номер посылки',
+  'выписку из домовой книги','справку о перебоях электроснабжения',
+  'скриншот из приложения такси','запись с видеорегистратора','скриншот карты пробок'
+];
+
+// INTROS by tone
+const INTROS={
+  business:[
+    'Доброе утро. ','Добрый день. ','Прошу прощения. ','Хочу пояснить ситуацию. ',
+    'Информирую вас: ','К сожалению, ','Вынужден сообщить: ',
+    'Считаю необходимым проинформировать: ','Довожу до вашего сведения: ',
+    'С уважением сообщаю: ','Уведомляю о следующем: ','Ставлю в известность: ',
+    'Прошу принять к сведению: ','Необходимо прояснить обстоятельства: ',
+    'Для полноты картины сообщаю: ','В рамках полной прозрачности: ',
+    'Кратко о ситуации: ','Хочу оперативно уведомить: ',
+    'Предоставляю пояснение: ','По существу: '
+  ],
+  dramatic:[
+    'Вы не поверите, что произошло. ','Представьте картину: ','Это было как в кино. ',
+    'Сейчас расскажу — вы ахнете. ','Ситуация из разряда «нарочно не придумаешь». ',
+    'Утро началось с катастрофы. ','Если бы мне вчера сказали, что так будет — я бы не поверил. ',
+    'Такое бывает раз в жизни — и именно сегодня. ','Держитесь крепче за стул. ',
+    'Это история, достойная экранизации. ','Даже не знаю, с чего начать... ',
+    'Жизнь подкинула сюжет круче любого сериала. ','Внимание: то, что я расскажу, звучит невероятно, но это чистая правда. ',
+    'Приготовьтесь — эта история вас шокирует. ','Когда-нибудь мы будем об этом смеяться, но не сегодня. ',
+    'Мой день начался как триллер. ','Помните фильмы-катастрофы? Вот примерно так. ',
+    'История невероятная, но у меня есть доказательства. ','Пристегните ремни — сейчас будет жёстко. ',
+    'Я бы и сам не поверил, если бы не пережил это лично. '
+  ],
+  bold:[
+    'Да, знаю. ','Ситуация такая: ','Без прелюдий: ','Скажу как есть. ',
+    'Давайте начистоту. ','Не буду юлить: ','Факт: ','Окей, вот что случилось. ',
+    'Короче говоря: ','Сразу к делу. ','Буду краток. ','Не стану оправдываться, просто расскажу. ',
+    'Вот как всё было: ','Без лишних слов. ','Расклад такой: ','Прямо и честно: ',
+    'Ладно, слушайте. ','Признаю сразу: ','К чёрту политкорректность — вот факты. ',
+    'Говорю один раз: '
+  ],
+  emotional:[
+    'Мне очень неловко... ','Простите, пожалуйста... ','Не знаю, как сказать... ',
+    'Мне тяжело об этом говорить, но... ','Заранее прошу понимания... ',
+    'Я правда переживаю из-за этого... ','Мне ужасно стыдно, но... ',
+    'С тяжёлым сердцем сообщаю... ','Пожалуйста, поймите меня правильно... ',
+    'Мне больно признавать, но... ','Это далось мне нелегко... ',
+    'Прошу — не судите строго... ','Говорю вам это с комком в горле... ',
+    'Надеюсь, вы не будете сердиться... ','Поверьте, мне самому от этого плохо... ',
+    'Знаю, что подвёл, и мне невыносимо стыдно... ','С дрожью в голосе признаюсь... ',
+    'Я долго не решался сказать, но... ','Это был кошмарный день, и вот почему... ',
+    'Пожалуйста, дослушайте до конца... '
+  ],
+  scientific:[
+    'По результатам анализа инцидента: ','Провёл ретроспективу. ','Техническая справка: ',
+    'Предоставляю root cause analysis. ','Краткий постмортем: ','Фактология: ',
+    'Данные следующие: ','На основании эмпирических наблюдений: ','Хронология событий: ',
+    'Согласно собранной телеметрии: ','Системный анализ показал: ','Результаты расследования: ',
+    'Причинно-следственный анализ: ','Экспертная оценка ситуации: ','Объективные данные свидетельствуют: ',
+    'Методологическая справка: ','Предварительное заключение: ','Статистический анализ инцидента: ',
+    'Диагностика выявила: ','Аналитическая записка: '
+  ]
+};
+
+// CAUSES by situation (~50 per situation for variety)
+const CAUSES={
+  late:[
+    'по дороге стал свидетелем ДТП — обязан был дождаться ГИБДД для протокола',
+    'в подъезде прорвало трубу — вода залила {N} этажей, пока не приехала аварийка, не мог выйти',
+    'лифт застрял между этажами, диспетчер был занят {D}',
+    'машину заблокировал грузовик на парковке — ждал эвакуатор {D}',
+    'утром экстренно попал к стоматологу — ночью разболелся зуб, боль невыносимая',
+    'на {P} произошла авария, перекрыли движение полностью на {D}',
+    'сработала пожарная сигнализация в доме — всех эвакуировали, ждали МЧС',
+    'у {NAME} случился приступ, вызвал скорую и ждал с ней до приезда медиков',
+    'собака убежала из квартиры через незакрытую дверь — искал по району {D}',
+    'отключили электричество во всём районе — ворота гаража не открывались',
+    'провалился в открытый люк по дороге к метро — ободрал ногу, обрабатывал рану',
+    'в метро остановили поезд из-за «подозрительного предмета» — стояли в тоннеле {D}',
+    'перепутал будильник — поставил на PM вместо AM, проснулся на {N} часов позже',
+    'кот запрыгнул на стол и опрокинул кофе на рабочую рубашку — пришлось переодеваться и застирывать',
+    'затопили соседи сверху, обнаружил это {T} — спасал технику и документы',
+    'ключи от машины случайно улетели в вентиляционную решётку — вызывал слесаря',
+    'на дороге {P} дерево упало и перегородило проезд, объезд занял {D}',
+    'забыл выключить утюг, вернулся с полдороги — перестраховался',
+    'ребёнку стало плохо в школе, пришлось забирать и везти к врачу',
+    'курьер привёз важные документы именно в момент выхода — не мог не принять',
+    'голубь залетел в квартиру через форточку — ловил его {D}, разгром полный',
+    'у соседей сработала автосигнализация {T} — никто не спал, весь дом гудел',
+    'по дороге на работу прокололось колесо {P} — менял на запаску под дождём',
+    'перепутал день недели и уехал на дачу, осознал ошибку только в электричке',
+    'кошка залезла на дерево и орала так, что соседи вызвали полицию — пришлось снимать',
+    'водопроводчик приехал без предупреждения и сказал «или сейчас, или через месяц»',
+    'попугай вылетел из клетки в открытое окно — бегал за ним по двору {D}',
+    'при выходе обнаружил, что дверь заклинило — вызывал МЧС для вскрытия',
+    'встретил {NAME} у подъезда — не мог не помочь донести тяжёлые сумки на {N}-й этаж',
+    'обнаружил утечку газа {T} — перекрыл вентиль, вызвал аварийку, ждал проверки',
+    'в переходе у метро стало плохо незнакомому человеку — оказывал первую помощь до приезда скорой',
+    'яндекс-такси отменило поездку {N} раз подряд — водители не хотели ехать {P}',
+    'банкомат съел карту, а на проезд нужны были наличные — ждал инкассаторов',
+    'в автобусе сломалась дверь — всех высадили на {P}, следующий пришёл через {D}',
+    'загорелся check engine прямо на выезде — не рискнул ехать, вызвал эвакуатор',
+    'обнаружил, что права просрочены — срочно поехал на метро, а станцию закрыли на вход',
+    'рухнул козырёк подъезда — перегородил выход, ждали коммунальщиков {D}',
+    'на весь район отключили горячую воду, а холодная текла ржавая — не мог собраться',
+    'мошенники позвонили {NAME} и чуть не украли деньги — {D} разбирался с банком',
+    'служба доставки привезла чужой заказ вместо моего — разруливал путаницу {D}',
+    'оторвалась подошва ботинка прямо у дома — пришлось возвращаться и переобуваться',
+    'ребёнок запер собаку в ванной, а ключ от двери потерялся — вызывал мастера',
+    'забыл пропуск на работу, вернулся, а дома не нашёл — искал {D}',
+    'посреди дороги наехал на гвоздь — оба правых колеса спустили одновременно',
+    'электричка сломалась между станциями — сидели в вагоне {D}',
+    'в маршрутке включили отопление на максимум — стало плохо, вышел, отдышивался',
+    'замёрз замок машины — размораживал {D}, руки задубели',
+    'по дороге встретил похоронную процессию, которая перекрыла всю улицу на {D}',
+    'утром обнаружил, что машину эвакуировали — ездил на штрафстоянку {D}',
+    'строители начали сверлить стену {T} — проснулся с мигренью, пил таблетки'
+  ],
+  homework:[
+    'вечером сбой облачного хранилища повредил все файлы — восстанавливал до {T}',
+    'ноутбук обновился принудительно, и автосохранение слетело — потерял {N} часов работы',
+    'младший брат случайно удалил папку с проектом, пытаясь «помочь»',
+    'отключили интернет за неоплату — не мог скачать материалы для задания',
+    'обнаружил противоречие в условии задачи и {D} пытался разобраться',
+    'работал в библиотеке, а она закрылась раньше из-за мероприятия — всё осталось на их компьютере',
+    'версия ПО на моём компьютере оказалась несовместимой — {D} ставил нужную',
+    'USB-флешка с готовой работой перестала читаться',
+    'антивирус пометил файл проекта как угрозу и удалил его в карантин',
+    'весь вечер помогал {NAME} с его проектом — не хватило времени на свой',
+    'участвовал в олимпиаде от университета — подтверждение могу предоставить',
+    'отравился на ужине — весь вечер и ночь было не до учёбы',
+    'Git merge conflict уничтожил финальную версию, откатывал {D}',
+    'залил кофе на клавиатуру, ноутбук не включался — отдал в ремонт',
+    'задание оказалось значительно сложнее, чем казалось — текущий прогресс {N}%',
+    'собака сгрызла зарядку ноутбука, а запасной не было — батарея села на середине работы',
+    'принтер сломался при печати финальной версии — ночью искал рабочий копицентр',
+    'случайно сохранил пустой файл поверх готовой работы — автовосстановление не помогло',
+    'сайт, на который нужно было загрузить работу, лежал всю ночь — скриншоты ошибки есть',
+    'кот наступил на клавиатуру и отправил незаконченную версию преподавателю',
+    'делал задание в Google Colab, а сессия разлогинилась и всё пропало',
+    'установил не ту версию Python — код не запускался, переустанавливал {D}',
+    'файл повредился при переносе на флешку — контрольная сумма не совпала',
+    'сосед по общаге устроил вечеринку — невозможно было сосредоточиться до {T}',
+    'готовился к другому предмету — перепутал расписание дедлайнов',
+    'ноутбук перегрелся и выключился во время рендеринга — потерял результаты',
+    'мама попросила срочно помочь с оформлением документов для пенсии',
+    'пришлось экстренно ехать к бабушке — она упала и вызвала скорую',
+    'VPN не подключался к университетской сети — без него не скачать датасет',
+    'LaTeX отказался компилироваться из-за неизвестной ошибки — дебажил {D}',
+    'одногруппник, с которым делали совместный проект, пропал и не выходит на связь',
+    'начался приступ аллергии — глаза опухли, невозможно было смотреть в экран',
+    'жёсткий диск начал щёлкать {T} — срочно бэкапил данные, было не до домашки',
+    'задание требовало программу, лицензия на которую стоит {N} тысяч рублей',
+    'в общежитии выбило пробки — электрик пришёл только утром',
+    'ноутбук украли в кафе, пока отходил в туалет — писал заявление в полицию',
+    'преподаватель опубликовал задание с ошибкой и исправил только вечером — переделывал',
+    'при установке библиотеки система словила конфликт зависимостей — решал {D}',
+    'работал ночью, случайно закрыл вкладку с несохранённым кодом в Jupyter',
+    'облачный сервер, на котором считалась модель, упал и потерял {N} эпох обучения',
+    'выключили отопление, в комнате было +8 — не мог печатать, пальцы не двигались',
+    'кот перегрыз кабель зарядки {T}, а магазины уже закрыты',
+    'делал на планшете, он обновился и слетели все приложения',
+    'не хватило места на диске — пришлось чистить {D}, потом уже не успел',
+    'скачал датасет на {N} ГБ — интернет не потянул, качал всю ночь',
+    'код работал на моей машине, но не на университетском сервере — отлаживал {D}',
+    'потерял тетрадь с конспектами, по которым делал задание',
+    'умер внешний SSD с единственной копией проекта',
+    'случайно залил в git с приватными ключами — {D} чистил историю коммитов',
+    'перепутал ветку в репозитории и запушил в чужой проект — {D} разгребал последствия'
+  ],
+  birthday:[
+    'готовил грандиозный сюрприз, но всё пошло не по плану — подарок задержала доставка',
+    'перепутал дату — был уверен, что день рождения завтра',
+    'календарь на телефоне сбросил все напоминания после обновления',
+    'последние {N} дней был в таком стрессе, что потерялся во времени',
+    'написал поздравление {T} — и забыл нажать «отправить». Могу показать черновик',
+    'заказал торт и забронировал ресторан, но ресторан отменил бронь, а торт не доехал',
+    'готовил фотоальбом с лучшими моментами — не успел закончить',
+    'подарок застрял на таможне — трекинг показывает «в обработке» уже {N} дней',
+    'хотел поздравить первым утром, но проспал из-за снотворного',
+    'был уверен, что мы договорились праздновать в выходные — оказалось, дата сегодня',
+    'специально делал вид что забыл — планировал сюрприз-вечеринку',
+    'перепутал с другим праздником — думал, именины в другой день',
+    'телефон сел ещё утром — весь день был без связи, не мог даже позвонить',
+    'заказал персональный подарок у мастера, а он задержал выполнение на {N} дней',
+    'цветы, которые заказал, завяли при доставке — отказался от них, но замену не нашёл',
+    'писал длинное трогательное письмо от руки, и чернила размазались — начинал заново',
+    'перевёл деньги на подарок, а платёж завис в банке на {D}',
+    'монтировал видеопоздравление от друзей — не все прислали свои ролики вовремя',
+    'планировал квест по городу с подсказками — один из этапов сорвался, переделывал',
+    'забронировал столик на другое число — перепутал цифры при вводе',
+    'подарок доставили по старому адресу — ездил забирать через весь город',
+    'рисовал портрет в подарок — на финальном этапе пролил на него воду',
+    'заказал именную гравировку — в мастерской написали имя с ошибкой, переделывали',
+    'сертификат на СПА оказался просрочен — узнал только при вручении',
+    '{NAME} меня уверил, что праздник перенесли на следующую неделю',
+    'купил билеты на концерт, а он оказался отменён — узнал за час до начала',
+    'хотел организовать встречу с друзьями детства — {N} человек отменились в последний момент',
+    'делал подарок своими руками — {D} провёл в мастерской, но не уложился в срок',
+    'заказал шарики и баннер — доставка перепутала адрес и привезла на другой конец города',
+    'записывал песню в подарок — студия отменила запись за день',
+    'организовал доставку завтрака в постель, а курьер приехал на {N} часов позже',
+    'собирал деньги на групповой подарок — двое не скинулись вовремя, сумма не набралась',
+    'хотел прилететь лично, но рейс отменили из-за погоды',
+    'забыл поздравить, потому что самого поздравляли весь день — у меня тоже праздник рядом',
+    'приготовил ужин, но перепутал рецепт и всё сгорело',
+    'учил стихотворение наизусть для поздравления — переволновался и забыл текст',
+    'планировал видеозвонок с семьёй, но часовые пояса не совпали',
+    'отправил подарок «Почтой России» — трекинг не обновляется {N} дней',
+    'заказал именной торт — кондитер перепутал и написал чужое имя',
+    'караоке, которое забронировал, оказалось закрыто на ремонт',
+    'готовил альбом в инстаграме со старыми фото — аккаунт заблокировали за массовую загрузку',
+    'букет из {N} роз завял по дороге из-за мороза',
+    'коробка с подарком промокла под дождём — содержимое испортилось',
+    'хотел заказать фейерверк, но оказалось, нужно разрешение — не успел оформить',
+    'билеты на спектакль раскупили за {N} минут до моей покупки',
+    'записал голосовое поздравление на {N} минут — мессенджер не отправил из-за размера',
+    'подарок оказался бракованным — обнаружил только при распаковке',
+    'таксист увёз пакет с подарками — пока нашёл и вернул, день кончился',
+    'организовал флешмоб, но {N} участников не пришли',
+    'готовил фотокнигу {D} — типография задержала печать'
+  ],
+  meeting:[
+    'произошёл конфликт в календаре — Google Calendar не синхронизировал с Outlook',
+    'срочный звонок от ключевого клиента, который угрожал уходом — решал {D}',
+    'отключился интернет — провайдер проводил работы, связь пропадала',
+    'перепутал часовые пояса — думал, встреча по московскому времени',
+    'ребёнка срочно нужно было забрать из школы — позвонили и сказали ЧП',
+    'директор дёрнул на незапланированный звонок — «на 5 минут», а растянулось на час',
+    'Zoom/Teams крашнулся при подключении, перезагрузка не помогла',
+    'был у врача — записывался месяц назад, а позвонили что есть окно прямо сейчас',
+    'блэкаут — весь район без электричества, интернет мёртв',
+    'попал в пробку без возможности подключиться — руки на руле, телефон сел',
+    'принял встречу как информационную и не поставил напоминание',
+    'коллега случайно отменил приглашение и я получил уведомление об отмене',
+    'предыдущий созвон затянулся на {D} — не было возможности покинуть',
+    'VPN отвалился, а без него не войти в корпоративный Zoom',
+    'ноутбук решил обновить Windows прямо перед встречей — ждал {D}',
+    'в кабинете начали сверлить стену — невозможно было участвовать с таким шумом',
+    'пригласили в другой зал ошибочно — сидел {D} не на той встрече',
+    'ссылка на Zoom была старая — подключался к прошлой сессии и не мог понять, почему пусто',
+    'микрофон и камера не определялись после обновления драйверов',
+    '{NAME} неожиданно приехал из другого города — не мог проигнорировать',
+    'застрял в лифте бизнес-центра на {D} — вызывали техника',
+    'забыл зарядить ноутбук, а розетки в переговорке не работали',
+    'в переговорной уже шла чужая встреча — искал свободную комнату {D}',
+    'сработала пожарная тревога в офисе — эвакуация заняла {D}',
+    'получил уведомление о переносе, которое оказалось ложным — письмо было от спамера',
+    'Wi-Fi в коворкинге лёг — все {N} человек сидели без интернета',
+    'телефон разрядился {T}, а встреча была телефонной',
+    'письмо с приглашением попало в спам — обнаружил только вечером',
+    'перепутал Zoom и Google Meet — отправил коллегам ссылку не на ту платформу',
+    'произошёл инцидент информационной безопасности — {D} менял пароли ко всем системам',
+    'ребёнок случайно заблокировал ноутбук, вводя пароль {N} раз неправильно',
+    'клиент позвонил с критичной проблемой на продакшене — пришлось тушить пожар {D}',
+    'курьер привёз оборудование, которое ждали {N} недель — надо было принять лично',
+    'HR назначил срочное собеседование нового кандидата на то же время',
+    'выяснилось, что ссылка на встречу требует другой аккаунт — логинился {D}',
+    'компьютер поймал BSOD за {N} минут до начала встречи',
+    'сосед начал ремонт с перфоратором — пришлось экстренно искать тихое место',
+    'банк позвонил с подозрением на мошенничество — заблокировали все карты, решал {D}',
+    'страховая компания вызвала на осмотр автомобиля — единственное окно за месяц',
+    'МФЦ назначил приём на это время, а запись была за {N} недель — перенести невозможно',
+    'участвовал в срочном совещании руководства — не мог отказать',
+    'TeamViewer-сессия клиента зависла — {D} решал проблему удалённо',
+    'случайно нажал «Отклонить» вместо «Принять» на приглашении — не заметил',
+    'в календаре встреча отображалась на другой день из-за бага синхронизации',
+    'авторизация в корпоративной системе слетела — IT-отдел восстанавливал доступ {D}',
+    'за {N} минут до встречи узнал, что она перенесена, но уведомление пришло только мне',
+    'произошёл сбой DNS — ни один сайт не открывался {D}',
+    'кондиционер в переговорной сломался — температура поднялась до +{N}°, ушли искать другую комнату',
+    'служба безопасности заблокировала пропуск — пока разбирались, встреча закончилась',
+    'коллега одолжил мой ноутбук «на минутку» и унёс в другой корпус'
+  ],
+  deadline:[
+    'при декомпозиции задачи обнаружились {N} блокирующих зависимостей',
+    'смежная команда изменила требования вчера в 19:00 — переделка затрагивает {N}% работы',
+    'работал до {T}, но коммит сломал мастер-ветку — откатывал {D}',
+    'вся архитектура оказалась неправильной — понял это в 3 ночи и начал переделывать',
+    'тестирование выявило критический баг, который потянул за собой переписывание модуля',
+    'заболел — температура {N}°, но всё равно пытался работать, качество начало страдать',
+    'ключевая библиотека выпустила breaking update, и половина кода сломалась',
+    'легаси-код оказался в {N} раз сложнее, чем планировалось — техдолг зашкаливает',
+    'оценка была нереалистичной — O(n²) вместо ожидаемого O(n)',
+    'ревьюер вернул PR с 47 замечаниями — переделывал с нуля',
+    'серверы упали в момент деплоя — {D} откатывал и восстанавливал',
+    'scope creep: задача разрослась на {N}% от первоначального объёма',
+    'CI/CD пайплайн ломался {N} раз подряд — каждый фикс порождал новый баг',
+    'базу данных заблокировало мёртвой транзакцией — {D} искал причину',
+    'дизайнер прислал финальные макеты за {N} часов до дедлайна — всё не совпало',
+    'продакт решил добавить «одну маленькую фичу» — она потянула за собой рефакторинг',
+    'код-ревью выявило проблему безопасности — пришлось переписывать модуль авторизации',
+    'миграция базы данных на {N} ГБ заняла в {N} раз больше, чем планировалось',
+    'тесты на staging проходят, на проде — нет, {D} искал различие в конфигурации',
+    'npm audit показал {N} критических уязвимостей — пришлось обновлять всё дерево зависимостей',
+    'заказчик прислал новые данные {T} — они полностью противоречили прежним',
+    'локализация на {N} языков оказалась в разы трудозатратнее, чем ожидалось',
+    'Kubernetes под начал падать в CrashLoopBackOff — дебажил {D}',
+    'ресурсы GPU-кластера были заняты — обучение модели встало на {D}',
+    'выяснилось, что API третьей стороны возвращает данные в другом формате',
+    'тестовое окружение отличалось от прода — баг воспроизводился только в продакшене',
+    'коллега ушёл на больничный, и его часть работы легла на меня',
+    'клиент на демо заметил баг, которого не было на тестах — срочный хотфикс',
+    'лицензия на ПО истекла, а обновление стоит {N} тысяч — ждали согласования',
+    'Figma-файл с дизайном оказался повреждён — дизайнер восстанавливал {D}',
+    'QA нашёл {N} регрессий после последнего мержа — откатывал и фиксил',
+    'при нагрузочном тестировании система падала при {N} RPS — оптимизировал {D}',
+    'документация к API оказалась устаревшей — {D} разбирался в исходниках',
+    'SSL-сертификат истёк в выходные — продакшен лежал, пока не обновили',
+    'Docker-образ раздулся до {N} ГБ — пришлось оптимизировать и пересобирать',
+    'конфликт версий Node.js между проектами — {D} настраивал nvm',
+    'при переносе на новый сервер слетели все переменные окружения',
+    'кэш Redis переполнился и начал вытеснять критические данные',
+    'логи писались в /dev/null из-за опечатки в конфиге — {D} искал пропавшие данные',
+    'обнаружил race condition, который воспроизводился раз в {N} запусков',
+    'мониторинг прислал {N} алертов за ночь — не мог игнорировать',
+    'Elasticsearch-кластер упал из-за нехватки дискового пространства — поднимал {D}',
+    'заказчик в пятницу вечером поменял приоритеты — высокоприоритетная задача оказалась другой',
+    'выяснилось, что техническое задание противоречит само себе в {N} пунктах',
+    'секьюрити-аудит заблокировал релиз — {N} замечаний нужно было закрыть',
+    'внезапно выросла нагрузка в {N} раз — масштабировал инфраструктуру {D}',
+    'DNS-пропагация после смены провайдера заняла {D} — сайт был недоступен',
+    'утёк API-ключ в публичный репозиторий — срочно ротировал все секреты',
+    'память на сервере утекала — через {D} OOM-killer убивал процессы',
+    'обновление ОС на сервере сломало совместимость с базой данных'
+  ],
+  gym:[
+    'после вчерашней тренировки чувствую дискомфорт в пояснице — врач рекомендовал день отдыха',
+    'на улице -25 и метель — навигатор показал «маршрут недоступен»',
+    'позвонила {NAME} — нужна была срочная помощь, поехал к ней',
+    'поругался с близким человеком, ночью не спал — нет сил ни физических, ни моральных',
+    'фитнес-трекер показал критически низкий recovery ({N}%) — тренировка контрпродуктивна',
+    'сорвал спину дома, поднимая мебель — пока восстанавливаюсь',
+    'зал закрыли на санобработку — узнал, только когда приехал',
+    'опоздал на групповое занятие на {N} минут — пускать отказались',
+    'забыл форму дома, а в шлёпанцах не пускают',
+    'сломался велосипед по дороге в зал — пока дотащил до дома, желание пропало',
+    'периодизация: вчера 150% нормы, сегодня запланированный rest day',
+    'аллергия обострилась — дышать тяжело, какой тут спорт',
+    'замок на шкафчике в раздевалке заел — все вещи остались внутри, тренироваться не в чем',
+    'вчера сдавал кровь — донорам рекомендуют {N} дня без нагрузок',
+    'застудил шею — повернуть голову невозможно, не то что приседать',
+    'мозоль на ноге лопнула — в кроссовках адская боль',
+    'тренер уволился, а новый мне не понравился — пока ищу альтернативу',
+    'абонемент закончился вчера, а зарплата только через {N} дней',
+    'в зале сломался кондиционер — внутри +{N}° и нечем дышать',
+    'весь бассейн заняли дети из спортшколы — свободных дорожек не было',
+    'начался ливень — до зала {N} км, а зонта нет',
+    'обнаружил грибок на ноге — пока не вылечу, в общественный зал не пойду',
+    'растянул связку на голеностопе — хожу с эластичным бинтом',
+    'мигрень с утра — при любом наклоне головы хочется умереть',
+    'машина на ремонте, а автобус до зала ходит раз в {D}',
+    'вчера переел на дне рождения у {NAME} — организм бунтует',
+    'давление скачет — тонометр показал {N} на 95',
+    'в зале карантин — у кого-то из посетителей нашли ковид',
+    'перетренированность: пульс покоя {N} ударов — организм просит паузу',
+    'после укуса осы рука распухла — поднимать ничего нельзя',
+    'сдавал анализы натощак — до обеда нельзя нагружаться',
+    'прививку сделали вчера — рука не поднимается, температура {N}°',
+    'электричка, на которой еду в зал, отменена — следующая через {D}',
+    'в зал завезли новое оборудование — зону свободных весов закрыли на монтаж',
+    'мой любимый тренажёр сломан уже {N} дней — без него программа не работает',
+    'на улице +38 в тени — врачи не рекомендуют нагрузки в такую жару',
+    'вчера помогал {NAME} с переездом — руки не поднимаются',
+    'пробовал новое упражнение и потянул бицепс бедра — компресс и покой',
+    'забыл наушники дома — без музыки тренировка не та',
+    'в раздевалке прорвало трубу — вода по щиколотку',
+    'поскользнулся на льду по дороге в зал — ушиб колено',
+    'ночью не спал из-за шума стройки — при недосыпе тренировка вредна',
+    'зал переехал на новый адрес — туда ехать {D}, пока ищу что-то ближе',
+    'утром судороги в икроножной — нужен магний и отдых',
+    'началась простуда — горло дерёт, нос заложен, голова тяжёлая',
+    'собака погрызла кроссовки — других спортивных нет',
+    'парковка у зала была полностью забита — кружил {D} и сдался',
+    'протеин закончился, а без него послетренировочное восстановление страдает',
+    'в зале отключили музыку и включили новости — атмосфера убита',
+    'пол в зале только помыли — скользко, травмоопасно'
+  ]
+};
+
+// DETAILS (enhance the story with specifics)
+const DETAILS={
+  business:[
+    'Ситуация полностью под контролем.',
+    'Приму все необходимые меры.',
+    'Готов обсудить детали.',
+    'Всё задокументировано.',
+    'Держу в курсе.',
+    'Обеспечу полную прозрачность процесса.',
+    'Уже согласовал план действий.',
+    'Все заинтересованные стороны уведомлены.',
+    'Риски минимизированы.',
+    'Процесс восстановления запущен.',
+    'Временные рамки скорректированы.',
+    'Резервный план активирован.',
+    'Отчёт будет предоставлен к концу дня.',
+    'Приоритеты пересмотрены с учётом ситуации.',
+    'Коммуникация с клиентами обеспечена.',
+    'Эскалация не потребовалась.',
+    'Параллельно работаю над срочными задачами.',
+    'SLA не пострадало.',
+    'Обратная связь учтена.',
+    'Все обязательства будут выполнены.',
+    'Взял ситуацию на личный контроль.',
+    'Ресурсы перераспределены.',
+    'Превентивные меры уже приняты.',
+    'Промежуточный статус: всё идёт по плану.',
+    'Готов предоставить подробный отчёт.',
+    'Координация с коллегами налажена.',
+    'Инцидент зарегистрирован в системе.',
+    'Рабочий процесс восстановлен.',
+    'Все дедлайны по другим задачам соблюдены.',
+    'Предлагаю короткий синк для обсуждения.'
+  ],
+  dramatic:[
+    'Это было нечто невообразимое.',
+    'Такого со мной ещё не случалось.',
+    'Я до сих пор в лёгком шоке.',
+    'Соседи были в ужасе.',
+    'Очевидцы не могли поверить своим глазам.',
+    'Ощущение, что попал в фильм-катастрофу.',
+    'Адреналин зашкаливал.',
+    'Сердце колотилось так, что казалось — выпрыгнет.',
+    'Руки до сих пор трясутся.',
+    'Даже не знаю, как мне удалось сохранить самообладание.',
+    'Это был самый безумный день в моей жизни.',
+    'Соседский кот от испуга забрался на дерево.',
+    'Прохожие останавливались и снимали на телефон.',
+    'Думал, это розыгрыш — но нет.',
+    'Казалось, время остановилось.',
+    'В какой-то момент подумал — всё, это конец.',
+    'Атмосфера была как перед грозой — напряжённая и зловещая.',
+    'Звук был такой, что содрогнулся весь дом.',
+    'До сих пор не верю, что это произошло со мной.',
+    'Люди вокруг стояли с открытыми ртами.',
+    'У меня побелели костяшки пальцев от напряжения.',
+    'Картина была достойна кисти Айвазовского.',
+    'Это был хаос в чистом виде.',
+    'Ощущение нереальности не покидало меня весь день.',
+    'Такие вещи случаются раз в столетие — и именно со мной.',
+    'Я буквально не мог двинуться с места от неожиданности.',
+    'Звук сирен до сих пор стоит в ушах.',
+    'Мурашки по коже до сих пор.',
+    'Это было похоже на сцену из апокалипсиса.',
+    'Если бы кто-то снял это на видео — миллион просмотров гарантирован.'
+  ],
+  bold:[
+    'Да, я мог бы поступить иначе. Но не жалею.',
+    'Зато совесть чиста.',
+    'Считаю, что поступил правильно.',
+    'И сделал бы так снова.',
+    'Приоритеты — штука жёсткая.',
+    'Не извиняюсь за правильный выбор.',
+    'Жизнь — это про приоритеты.',
+    'Кто-то должен был это сделать.',
+    'Иногда правильное решение — самое неудобное.',
+    'Я выбрал — и не собираюсь оправдываться.',
+    'Такова реальность — нравится вам это или нет.',
+    'Можно долго спорить, но факты — упрямая вещь.',
+    'Это был осознанный выбор, не случайность.',
+    'Я не из тех, кто перекладывает ответственность.',
+    'Ситуация потребовала решения — я его принял.',
+    'Будь я роботом, поступил бы по-другому. Но я человек.',
+    'На моём месте вы поступили бы так же.',
+    'Критиковать легко, когда не ты принимаешь решения.',
+    'Главное — результат. А он будет.',
+    'Я не ищу одобрения — я описываю факты.',
+    'Бывают дни, когда всё идёт не так. Это — один из них.',
+    'Мне не нужны оправдания. Я просто информирую.',
+    'Совершенных людей не бывает — и я не исключение.',
+    'Да, опоздал. Но сделал кое-что поважнее.',
+    'Переживу и это.',
+    'Каждый взрослый человек имеет право на один плохой день.',
+    'Мои причины — мои. Деталями делиться не обязан.',
+    'Давайте без драмы.',
+    'Это случилось, не отмотаешь назад.',
+    'Предлагаю сосредоточиться на том, что мы можем контролировать.'
+  ],
+  emotional:[
+    'Мне действительно нелегко об этом говорить.',
+    'Надеюсь на понимание...',
+    'Обещаю, это не повторится.',
+    'Я очень ценю ваше терпение.',
+    'Это был один из тяжелейших дней.',
+    'Благодарю за понимание.',
+    'Я чувствую себя ужасно из-за этого.',
+    'Мне стыдно смотреть вам в глаза.',
+    'Это ситуация, в которой не хотел бы оказаться никто.',
+    'Я переживал всю ночь.',
+    'Поверьте, для меня это не менее болезненно.',
+    'Я старался изо всех сил, но обстоятельства оказались сильнее.',
+    'Мне бесконечно жаль.',
+    'В такие моменты понимаешь, как важна поддержка.',
+    'Я знаю, что подвёл вас, и от этого ещё тяжелее.',
+    'Всю ночь не мог уснуть от мыслей об этом.',
+    'Если бы я мог всё исправить — сделал бы не задумываясь.',
+    'Это был тот случай, когда жизнь проверяет на прочность.',
+    'Мне дорого ваше мнение обо мне — и это причиняет боль вдвойне.',
+    'Я вложил всё, что мог, но этого оказалось недостаточно.',
+    'Чувствую себя так, будто подвёл самого важного человека.',
+    'Сердце разрывается от осознания ситуации.',
+    'Я ценю каждую каплю доверия, которое вы мне оказываете.',
+    'Обещаю компенсировать это десятикратно.',
+    'Буду благодарен за шанс всё исправить.',
+    'Вы для меня значите больше, чем можете себе представить.',
+    'Каждую минуту я думал о том, как это отразится на вас.',
+    'Прошу не терять веру в меня.',
+    'Мне физически плохо от осознания, что я вас подвёл.',
+    'Это был урок, который я не забуду.'
+  ],
+  scientific:[
+    'Вероятность повторения: менее {N}%.',
+    'Корреляция подтверждена на уровне r={N}.',
+    'Среднеквадратичное отклонение от нормы: {N}σ.',
+    'По методологии Six Sigma это классифицируется как аномалия.',
+    'Данные верифицированы.',
+    'Confidence interval: {N}%.',
+    'Регрессионный анализ подтвердил причинно-следственную связь.',
+    'Коэффициент детерминации R² = 0.{N}.',
+    'Статистическая значимость: p < 0.0{N}.',
+    'Выборка из {N} наблюдений подтверждает гипотезу.',
+    'По закону Мёрфи, вероятность совпадения событий была менее {N}%.',
+    'Логистическая модель предсказывала этот исход с точностью {N}%.',
+    'Байесовский вывод указывает на форс-мажор с апостериорной вероятностью {N}%.',
+    'Энтропия системы превысила допустимый порог.',
+    'Анализ временных рядов выявил аномальный выброс.',
+    'Факторный анализ показал {N} независимых причин.',
+    'Проведён A/B-тест — контрольная группа также пострадала.',
+    'Метрика MTBF снижена на {N}% — требуется коррективное воздействие.',
+    'Доверительный интервал смещён на {N}σ от среднего.',
+    'Кросс-валидация на {N} фолдах подтверждает результаты.',
+    'Квантиль {N}-го перцентиля подтверждает экстремальность события.',
+    'Коэффициент Жаккара между ожидаемым и фактическим исходом: 0.0{N}.',
+    'По критерию Стьюдента отклонение значимо на уровне {N}%.',
+    'Матрица рисков скорректирована.',
+    'Проведён бенчмарк — базовый показатель восстановлен.',
+    'Частотный анализ показал: инцидент относится к категории «чёрный лебедь».',
+    'По модели Монте-Карло: {N} из 10000 симуляций дали аналогичный результат.',
+    'Причинно-следственная диаграмма Исикавы выявила {N} корневых причин.',
+    'Контрольная карта Шухарта зафиксировала выход за пределы UCL.',
+    'Диаграмма Парето: {N}% проблем объясняются одной корневой причиной.'
+  ]
+};
+
+// EVIDENCE options
+const EVIDENCE=[
+  'Могу предоставить {DOC}.',
+  '{DOC} — на руках, готов показать.',
+  'Есть {DOC} в качестве подтверждения.',
+  'При необходимости предоставлю {DOC}.',
+  '{NAME} может подтвердить.',
+  'Камеры наблюдения зафиксировали — могу запросить запись.',
+  'Есть переписка с таймстемпами.',
+  'Геолокация телефона подтвердит.',
+  'В домовом чате всё обсуждали — скрин могу скинуть.',
+  'У меня сохранена {DOC} с точной датой и временем.',
+  'Могу переслать SMS от {NAME} — там всё описано.',
+  'Скриншот push-уведомления от МЧС прилагается.',
+  'Есть отметка в электронном журнале.',
+  'На Яндекс.Картах можно проверить пробку {T}.',
+  'Запись с видеорегистратора всё покажет.',
+  'Логи провайдера подтвердят отключение интернета.',
+  '{NAME} был рядом и готов дать показания.',
+  'Могу показать историю вызовов скорой.',
+  'В приложении такси сохранена история поездок.',
+  'Есть фото с таймстемпом.',
+  'Могу скинуть скриншот экрана блокировки с временем.',
+  'Банковская выписка покажет, где я был в тот момент.',
+  'Есть уведомление от управляющей компании.',
+  'Данные с фитнес-браслета подтвердят время и маршрут.',
+  'В мессенджере сохранены голосовые от {NAME}.',
+  'Могу запросить запись разговора с оператором.',
+  'Электронный пропуск зафиксировал время выхода из дома.',
+  'У {NAME} есть видео с места событий.',
+  'Справка уже запрошена — будет готова через {N} дней.',
+  'Запись домофона подтвердит время выхода.',
+  'Скриншоты из чата с поддержкой провайдера — на руках.',
+  'В навигаторе сохранён маршрут с пробками.',
+  'Билет из клиники с печатью и временем приёма.',
+  'Могу переслать электронное письмо с уведомлением.',
+  'Журнал событий в подъезде ведёт консьерж — можно уточнить.',
+  'Пуш-уведомление от банка с геолокацией сохранилось.',
+  'Отзыв на 2ГИС от других пострадавших уже есть.',
+  'Местные паблики писали об этом — могу скинуть ссылку.',
+  'Акт выполненных работ от аварийной службы у меня на почте.',
+  'Скриншот из приложения метро с информацией о задержке.',
+  'Данные умного дома зафиксировали протечку {T}.',
+  'У {NAME} есть фото последствий.',
+  'Заявление в полицию с входящим номером — могу предъявить.',
+  'Запись в медицинской карте подтвердит визит.',
+  'Могу предоставить свидетелей — {NAME} и ещё {N} человек.',
+  'Квитанция об оплате эвакуатора сохранена.',
+  'Электронный талон из МФЦ с временем записи.',
+  'Могу показать уведомление от страховой компании.',
+  'В подъездном чате {N} соседей обсуждали то же самое.',
+  'Есть аудиозапись разговора с диспетчером.'
+];
+
+// CLOSING by tone
+const CLOSINGS={
+  business:[
+    'Готов компенсировать.','Приму меры для предотвращения повторения.','Жду вашей обратной связи.',
+    'Уже наверстываю.','Буду держать в курсе.','План действий готов.',
+    'Задержусь сегодня для компенсации.','Все приоритетные задачи выполню в срок.',
+    'При необходимости готов к созвону.','График скорректирован — успеваем.',
+    'Предоставлю обновлённый статус к вечеру.','Все блокеры устранены.',
+    'Работа возобновлена в штатном режиме.','Эффективность восстановлена.',
+    'Процессы оптимизированы с учётом инцидента.','Рабочий день будет продлён.',
+    'Приоритет номер один — закрыть текущие обязательства.',
+    'Предлагаю синхронизироваться в конце дня.','Отчёт о прогрессе будет в 18:00.',
+    'Уверен, что наверстаю за ближайшие {N} часов.',
+    'Делегировал некритичные задачи — фокусируюсь на главном.',
+    'Команда проинформирована и подстраховывает.','SLA будет выдержан.',
+    'Уже в работе — прошу не беспокоиться.','Результаты будут к утру.',
+    'Все ресурсы направлены на восстановление графика.',
+    'Промежуточный отчёт пришлю через час.',
+    'Клиенты не заметят задержку — всё под контролем.',
+    'Эскалация не требуется.','Инцидент закрыт, работа продолжается.'
+  ],
+  dramatic:[
+    'Надеюсь, такого больше никогда не повторится.','Этот день я запомню надолго.',
+    'В общем, приключение было то ещё.','Зато будет что рассказать внукам.',
+    'Выжил — и это главное.','Кажется, я исчерпал лимит невезения на год вперёд.',
+    'После такого можно писать мемуары.','Жизнь — лучший сценарист.',
+    'Говорят, то, что нас не убивает, делает нас сильнее. Проверено.',
+    'В следующий раз буду записывать на камеру — такое нельзя терять.',
+    'Если бы снимали реалити-шоу — этот эпизод стал бы финалом сезона.',
+    'Одно могу сказать точно: скучно не было.',
+    'Такой день — раз в десять лет. И он, к счастью, позади.',
+    'По шкале безумия — твёрдая десятка из десяти.',
+    'Мне нужен отпуск. Срочно.','История на века.',
+    'Когда-нибудь буду рассказывать это за ужином и все будут смеяться.',
+    'Главный урок: всегда может быть хуже.',
+    'Если меня когда-нибудь спросят «какой был самый безумный день?» — я знаю ответ.',
+    'Надеюсь, жизнь больше не будет подкидывать такие сюжетные повороты.',
+    'Я как будто прожил целый год за один день.',
+    'Нервные клетки не восстанавливаются — а я потерял их примерно миллион.',
+    'Эпично. Другого слова не подберу.','Катарсис. Чистейший катарсис.',
+    'В общем, день удался — если вы понимаете, о чём я.',
+    'Когда всё закончилось, я просто сел и молчал минут десять.',
+    'Режиссёру бы понравилось.','Теперь я точно знаю, что значит «на пределе».',
+    'Этот опыт я бы не повторил даже за миллион.',
+    'Точка. Занавес. Аплодисменты.',
+    'Герои не выбирают свои испытания.',
+    'Хэппи-энд? Ну, я жив — значит, да.',
+    'После сегодняшнего дня мне уже ничего не страшно.',
+    'Такое забыть невозможно — оно впечаталось в память навсегда.',
+    'Один из тех дней, когда думаешь: «Всё, хватит, я устал от приключений».'
+  ],
+  bold:[
+    'Вопросы?','Готов к диалогу, но не к нравоучениям.',
+    'Давайте сфокусируемся на решении.','Предлагаю двигаться дальше.',
+    'Всё под контролем — не переживайте.','Я уже здесь и готов работать.',
+    'Тема закрыта.','Жду конструктивного ответа.',
+    'Давайте не будем раздувать из этого историю.','Всё сказал.',
+    'Если есть претензии — обсудим лично.','Предлагаю оставить это в прошлом.',
+    'Работаю — остальное неважно.','Не трачу время на оправдания — трачу на дело.',
+    'Ситуация исчерпана.','Выводы сделаны.',
+    'Вместо обсуждения предлагаю действие.','Дальше — только вперёд.',
+    'Кто хочет — ищет возможности. Я уже ищу.','Претензии принимаю, нытьё — нет.',
+    'Жизнь продолжается.','Это было, это прошло.',
+    'На повестке — рабочие вопросы.','Дискуссия окончена.',
+    'Считаю тему исчерпанной.','Если нужна помощь — скажите. Если нет — работаем.',
+    'Не вижу смысла обсуждать то, что нельзя изменить.',
+    'Могу ответить на вопросы по существу.',
+    'Делаю выводы и иду дальше.','Что было — то было. Двигаемся.'
+  ],
+  emotional:[
+    'Обещаю — больше такого не будет.','Спасибо, что понимаете...',
+    'Если нужно обсудить — я открыт.','Постараюсь загладить вину.',
+    'Ваше доверие для меня очень важно.','Буду стараться в два раза больше.',
+    'Сделаю всё, чтобы восстановить ваше доверие.','Мне очень нужна ваша поддержка.',
+    'Пожалуйста, дайте мне шанс всё исправить.','Я буду работать над собой.',
+    'Спасибо за терпение — я этого не заслуживаю.','Обещаю стать лучше.',
+    'Ваше мнение — самое важное для меня.','Простите... ещё раз простите.',
+    'Я не хочу потерять вашего уважения.','Постараюсь не подводить вас впредь.',
+    'Благодарю за великодушие.','Ваша доброта — незаслуженный подарок.',
+    'Мне правда важно знать, что вы не сердитесь.','Обещаю: это был последний раз.',
+    'Готов сделать что угодно, чтобы компенсировать.','Не знаю, чем заслужить прощение.',
+    'Пожалуйста, не разочаровывайтесь во мне.','Я исправлюсь — это обещание.',
+    'Спасибо, что выслушали.','Ваше понимание значит для меня целый мир.',
+    'Надеюсь, однажды смогу вернуть этот долг доброты.',
+    'Буду благодарен вам вечно.','Если нужно — я готов обсудить лично.',
+    'От всего сердца — простите.','Мне правда очень, очень жаль.'
+  ],
+  scientific:[
+    'Corrective actions внедрены.','Митигация завершена.',
+    'Инцидент закрыт, RCA прилагается.','Мониторинг установлен.',
+    'Риск снижен до допустимого уровня.','Превентивные меры активированы.',
+    'Дашборд обновлён — метрики в зелёной зоне.','SLO выдержан.',
+    'Автоматизация добавлена для предотвращения рецидива.',
+    'Постмортем опубликован в Confluence.','Тикет в Jira закрыт.',
+    'Алерты перенастроены с порогом чувствительности {N}%.',
+    'Регрессионные тесты пройдены.','Rollback-процедура протестирована.',
+    'Канареечный деплой прошёл успешно.','Feature flag отключён до стабилизации.',
+    'Документация обновлена.','Runbook дополнен новым сценарием.',
+    'Метрики DORA не пострадали.','Mean Time to Recovery: {N} минут.',
+    'Blame-free ретро запланировано на завтра.',
+    'Все зависимости зафиксированы в lock-файле.',
+    'Health check восстановлен — 200 OK.','Логирование расширено для раннего обнаружения.',
+    'Система мониторинга уведомит при повторении.','Резервная копия протестирована.',
+    'Все метрики вернулись к baseline.','Тест-кейсы дополнены.',
+    'Disaster Recovery план верифицирован.','Эксперимент завершён, выводы задокументированы.',
+    'Энтропия системы нормализована.'
+  ]
+};
+
+// APOLOGY fragments
+const APOLOGIES=[
+  'Искренне прошу прощения за неудобства.',
+  'Понимаю, что создал проблемы — беру ответственность.',
+  'Мне очень жаль, что так вышло.',
+  'Приношу извинения.',
+  'Виноват, признаю.',
+  'Сожалею о доставленных неудобствах.',
+  'Понимаю ваше разочарование.',
+  'Прошу принять мои глубочайшие извинения.',
+  'Беру всю вину на себя.',
+  'Осознаю, что это непростительно, и всё же прошу прощения.',
+  'Нет оправданий — только раскаяние.',
+  'Мне невыносимо стыдно.',
+  'Понимаю, если вы злитесь — имеете полное право.',
+  'Это полностью моя ответственность.',
+  'Прошу прощения — буду работать над тем, чтобы это не повторилось.',
+  'Никакие слова не компенсируют, но всё же: простите.',
+  'Крайне сожалею о произошедшем.',
+  'Принимаю любую критику — она справедлива.',
+  'Если я могу что-то сделать для компенсации — скажите.',
+  'Прошу дать мне шанс загладить вину.',
+  'Понимаю, что подвёл — и мне от этого тяжело.',
+  'Приношу свои самые искренние извинения.',
+  'Извините — знаю, что слова мало что значат, но я серьёзно.',
+  'Готов нести любые последствия.',
+  'Это недопустимо, и я это осознаю.',
+  'Обещаю сделать выводы и не повторять ошибку.',
+  'Мне нечего сказать в своё оправдание.',
+  'Простите за доставленные хлопоты — я всё исправлю.',
+  'Каюсь — ситуация целиком моя вина.',
+  'Надеюсь на вашу снисходительность.'
+];
+
+// SOLUTION fragments
+const SOLUTIONS=[
+  'Уже работаю над предотвращением подобного в будущем.',
+  'Настроил тройное дублирование напоминаний.',
+  'Внедрил автоматические бэкапы каждые 15 минут.',
+  'Завёл второй будильник на другом устройстве.',
+  'Перешёл на новую систему планирования.',
+  'Подключил мониторинг — теперь получаю алерты.',
+  'Пересмотрел свой процесс и устранил узкие места.',
+  'Составил чек-лист, чтобы это не повторилось.',
+  'Установил приложение для контроля привычек.',
+  'Договорился с {NAME} о взаимном контроле.',
+  'Завёл таймер на каждый критически важный этап.',
+  'Перевёл все напоминания на бумажный ежедневник — технологии подводят.',
+  'Начал вставать на полчаса раньше — запас времени на форс-мажоры.',
+  'Оформил страховку на все важные вещи.',
+  'Подготовил план Б на каждый возможный сценарий.',
+  'Создал резервный канал связи на случай сбоев.',
+  'Прописал процедуру эскалации на случай повторения.',
+  'Подключил дополнительного провайдера интернета.',
+  'Держу запасной комплект одежды на работе.',
+  'Сделал дубликат всех ключей и раздал доверенным людям.',
+  'Настроил автоматическую синхронизацию календарей.',
+  'Установил UPS для защиты от перебоев электричества.',
+  'Завёл привычку проверять расписание за день до события.',
+  'Перешёл на облачное хранение — больше никаких локальных потерь.',
+  'Прохожу курс тайм-менеджмента.',
+  'Настроил геолокационные напоминания — при выходе из дома получаю список дел.',
+  'Подписался на уведомления от аварийных служб района.',
+  'Завёл канал в Telegram для дублирования важных напоминаний.',
+  'Нанял ассистента для контроля расписания.',
+  'Внедрил правило «5 минут» — если задача занимает меньше 5 минут, делаю сразу.'
+];
+
+// TAGS database
+const TAG_POOL={
+  business:['деловая','проактивная','с планом','ответственная','системная','прозрачная','документируемая','результативная'],
+  dramatic:['кинематографичная','эпичная','яркая','сюжетная','незабываемая','живая','образная','атмосферная'],
+  bold:['дерзкая','уверенная','прямая','честная','бескомпромиссная','вызывающая','провокационная','смелая'],
+  emotional:['трогательная','искренняя','человечная','душевная','глубокая','эмпатичная','тёплая','сердечная'],
+  scientific:['аналитическая','data-driven','системная','с метриками','верифицированная','обоснованная','научная','доказательная']
+};
+
+let curSit=null,curTone='business',extras=new Set(['evidence']),curExcuse=null,genN=0,totalR=0,bestR=0;
+
+function selectSit(el){document.querySelectorAll('.sit-card').forEach(c=>c.classList.remove('active'));el.classList.add('active');curSit=el.dataset.sit;document.getElementById('customInput').value='';document.getElementById('genBtn').disabled=false}
+function onCustom(){const v=document.getElementById('customInput').value.trim();if(v){document.querySelectorAll('.sit-card').forEach(c=>c.classList.remove('active'));curSit='custom';document.getElementById('genBtn').disabled=false}else if(!document.querySelector('.sit-card.active'))document.getElementById('genBtn').disabled=true}
+function selTone(el){document.querySelectorAll('.tone').forEach(c=>c.classList.remove('active'));el.classList.add('active');curTone=el.dataset.tone}
+function togExt(el){el.classList.toggle('active');const k=el.dataset.extra;extras.has(k)?extras.delete(k):extras.add(k)}
+
+function fillVars(s){
+  return s.replace(/\{NAME\}/g,R(NAMES)).replace(/\{T\}/g,R(TIMES)).replace(/\{P\}/g,R(PLACES))
+    .replace(/\{D\}/g,R(DURATIONS)).replace(/\{DOC\}/g,R(DOCS)).replace(/\{N\}/g,RN(2,98));
+}
+
+function buildExcuse(sit,tone){
+  const causes=CAUSES[sit]||CAUSES.late;
+  const intro=R(INTROS[tone]);
+  const cause=fillVars(R(causes));
+  const detail=fillVars(R(DETAILS[tone]));
+  const closing=fillVars(R(CLOSINGS[tone]));
+
+  let parts=[intro+cause+'. '+detail];
+  if(extras.has('evidence')) parts.push(fillVars(R(EVIDENCE)));
+  if(extras.has('apology')) parts.push(R(APOLOGIES));
+  if(extras.has('solution')) parts.push(R(SOLUTIONS));
+  parts.push(closing);
+
+  const text=parts.join(' ');
+  // Generate hash to avoid repeats
+  const hash=text.slice(0,80);
+  if(usedHashes.has(hash)&&usedHashes.size<500) return buildExcuse(sit,tone);
+  usedHashes.add(hash);
+
+  const baseR=RN(72,96);
+  const toneBonus=tone==='business'?3:tone==='emotional'?4:tone==='scientific'?2:0;
+  const evidBonus=extras.has('evidence')?3:0;
+  const r=Math.min(99,baseR+toneBonus+evidBonus);
+  const tags=[R(TAG_POOL[tone]),R(TAG_POOL[tone].filter((_,i)=>i>3)),extras.has('evidence')?'с доказательствами':'лаконичная'];
+
+  return{t:text,r,tags};
+}
+
+function generate(){
+  const btn=document.getElementById('genBtn');btn.classList.add('loading');btn.disabled=true;
+  const bar=document.getElementById('loadBar');let p=0;
+  const iv=setInterval(()=>{p+=Math.random()*15+5;if(p>95)p=95;bar.style.width=p+'%'},150);
+  setTimeout(()=>{
+    clearInterval(iv);bar.style.width='100%';
+    setTimeout(()=>{
+      let ex;
+      if(curSit==='custom'){
+        const input=document.getElementById('customInput').value.trim();
+        // Inject custom situation into causes temporarily
+        const tmpCauses=['из-за ситуации с «'+input+'» — обстоятельства потребовали немедленного внимания',
+          'произошло следующее: '+input+' — это заняло всё моё время',
+          'не смог из-за того, что '+input+' — ситуация была критической'];
+        CAUSES._custom=tmpCauses;
+        ex=buildExcuse('_custom',curTone);
+      } else {
+        ex=buildExcuse(curSit,curTone);
+      }
+      curExcuse=ex;showResult(ex);
+      btn.classList.remove('loading');btn.disabled=false;bar.style.width='0';
+      genN++;totalR+=ex.r;bestR=Math.max(bestR,ex.r);updStats();
+    },300)
+  },1200+Math.random()*600);
+}
+
+function quickGenerate(){
+  const sits=['late','homework','birthday','meeting','deadline','gym'];
+  curSit=R(sits);curTone=R(['business','dramatic','emotional']);
+  document.getElementById('genBtn').disabled=false;
+  document.getElementById('generator').scrollIntoView({behavior:'smooth'});
+  setTimeout(generate,500);
+}
+
+function showResult(ex){
+  const res=document.getElementById('result'),txt=document.getElementById('excuseText');
+  txt.innerHTML='<span class="cursor"></span>';
+  let i=0;const iv=setInterval(()=>{if(i<ex.t.length){txt.innerHTML=ex.t.slice(0,i+1)+'<span class="cursor"></span>';i+=1+Math.floor(Math.random()*2)}else{txt.textContent=ex.t;clearInterval(iv)}},16);
+
+  const ms=[
+    {n:'Правдоподобность',v:ex.r,c:ex.r>=90?'#00c896':ex.r>=80?'#ffb400':'#EE3F2C'},
+    {n:'Убедительность',v:Math.min(99,ex.r+Math.floor(Math.random()*10-5)),c:'#7c5cfc'},
+    {n:'Эмоциональность',v:curTone==='emotional'||curTone==='dramatic'?80+Math.floor(Math.random()*15):40+Math.floor(Math.random()*30),c:'#ff6b6b'},
+    {n:'Проверяемость',v:extras.has('evidence')?75+Math.floor(Math.random()*20):30+Math.floor(Math.random()*30),c:'#00c896'}
+  ];
+  document.getElementById('metrics').innerHTML=ms.map(m=>`<div class="metric"><div class="metric-top"><span class="metric-name">${m.n}</span><span class="metric-val" style="color:${m.c}">${m.v}%</span></div><div class="metric-bar"><div class="metric-fill" style="background:${m.c}" data-w="${m.v}"></div></div></div>`).join('');
+
+  document.getElementById('tags').innerHTML=ex.tags.map((t,i)=>`<span class="tag ${i%2?'tag-w':'tag-r'}">${t}</span>`).join('');
+
+  let v;
+  if(ex.r>=90)v={c:'v-high',i:'<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',t:'Неопровержимая',d:'Практически невозможно опровергнуть'};
+  else if(ex.r>=80)v={c:'v-mid',i:'<svg viewBox="0 0 24 24"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg>',t:'Убедительная',d:'Высокая вероятность успеха'};
+  else v={c:'v-low',i:'<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',t:'Рискованная',d:'Используйте с осторожностью'};
+  const vb=document.getElementById('verdict');vb.className='verdict-box '+v.c;
+  vb.innerHTML=`<div class="verdict-icon">${v.i}</div><div><div class="vt-title">${v.t}</div><div class="vt-desc">${v.d}</div></div>`;
+
+  res.classList.remove('show');void res.offsetWidth;res.classList.add('show');
+  setTimeout(()=>document.querySelectorAll('.metric-fill').forEach(el=>el.style.width=el.dataset.w+'%'),200);
+  try{const ac=new AudioContext(),o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);o.frequency.setValueAtTime(523,ac.currentTime);o.frequency.setValueAtTime(659,ac.currentTime+.1);o.frequency.setValueAtTime(784,ac.currentTime+.2);g.gain.setValueAtTime(.06,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.4);o.start();o.stop(ac.currentTime+.4)}catch(e){}
+}
+
+function updStats(){document.getElementById('sGen').textContent=genN;document.getElementById('sAvg').textContent=Math.round(totalR/genN)+'%';document.getElementById('sBest').textContent=bestR+'%'}
+function copyExcuse(){if(!curExcuse)return;navigator.clipboard.writeText(curExcuse.t).then(()=>toast('Скопировано! Удачи с боссом')).catch(()=>{const ta=document.createElement('textarea');ta.value=curExcuse.t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Скопировано!')})}
+function shareExcuse(){if(!curExcuse)return;navigator.share?navigator.share({title:'ExcuseAI',text:curExcuse.t}):copyExcuse()}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000)}
+
+// ===== NEURAL NETWORK CANVAS =====
+(function(){
+  const c=document.getElementById('neuralBg'),x=c.getContext('2d');
+  let W,H,pts=[],mouse={x:-9999,y:-9999};
+  const COLORS=['238,63,44','255,120,80','255,255,255'];
+
+  function resize(){W=c.width=window.innerWidth;H=c.height=window.innerHeight;init()}
+  function init(){
+    pts=[];
+    const n=Math.min(100,Math.floor(W*H/12000));
+    for(let i=0;i<n;i++) pts.push({
+      x:Math.random()*W,y:Math.random()*H,
+      vx:(Math.random()-.5)*.35,vy:(Math.random()-.5)*.35,
+      r:Math.random()*2.5+.5,
+      color:COLORS[Math.floor(Math.random()*COLORS.length)],
+      pulse:Math.random()*Math.PI*2
+    });
+  }
+
+  function draw(){
+    x.fillStyle='rgba(0,0,0,0.12)';x.fillRect(0,0,W,H);
+    const t=Date.now()*0.001;
+
+    // Gradient orbs
+    const g1=x.createRadialGradient(W*.2,H*.3,0,W*.2,H*.3,W*.4);
+    g1.addColorStop(0,'rgba(238,63,44,0.04)');g1.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=g1;x.fillRect(0,0,W,H);
+    const g2=x.createRadialGradient(W*.8,H*.7,0,W*.8,H*.7,W*.35);
+    g2.addColorStop(0,'rgba(238,63,44,0.03)');g2.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=g2;x.fillRect(0,0,W,H);
+
+    // Connections
+    for(let i=0;i<pts.length;i++){
+      const a=pts[i];
+      for(let j=i+1;j<pts.length;j++){
+        const b=pts[j],dx=a.x-b.x,dy=a.y-b.y,d=Math.sqrt(dx*dx+dy*dy);
+        if(d<140){
+          const op=.12*(1-d/140);
+          x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x,b.y);
+          x.strokeStyle=`rgba(238,63,44,${op})`;x.lineWidth=.6;x.stroke();
+        }
+      }
+      // Mouse connections
+      const mdx=mouse.x-a.x,mdy=mouse.y-a.y,md=Math.sqrt(mdx*mdx+mdy*mdy);
+      if(md<200){
+        x.beginPath();x.moveTo(a.x,a.y);x.lineTo(mouse.x,mouse.y);
+        x.strokeStyle=`rgba(238,63,44,${.2*(1-md/200)})`;x.lineWidth=.8;x.stroke();
+        a.vx+=mdx*.00008;a.vy+=mdy*.00008;
+      }
+    }
+
+    // Particles
+    pts.forEach(p=>{
+      p.x+=p.vx;p.y+=p.vy;p.pulse+=.02;
+      if(p.x<0||p.x>W)p.vx*=-1;
+      if(p.y<0||p.y>H)p.vy*=-1;
+      // Speed dampening
+      p.vx*=.999;p.vy*=.999;
+      const glow=.4+Math.sin(p.pulse)*.2;
+      x.beginPath();x.arc(p.x,p.y,p.r*(1+Math.sin(p.pulse)*.3),0,Math.PI*2);
+      x.fillStyle=`rgba(${p.color},${glow})`;x.fill();
+      // Outer glow
+      if(p.r>1.5){
+        x.beginPath();x.arc(p.x,p.y,p.r*3,0,Math.PI*2);
+        x.fillStyle=`rgba(${p.color},${glow*.08})`;x.fill();
+      }
+    });
+
+    // Neural pulse waves (occasional)
+    if(Math.random()<.005){
+      const src=pts[Math.floor(Math.random()*pts.length)];
+      x.beginPath();x.arc(src.x,src.y,30,0,Math.PI*2);
+      x.strokeStyle='rgba(238,63,44,0.15)';x.lineWidth=1;x.stroke();
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize',resize);
+  document.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY});
+  document.addEventListener('mouseleave',()=>{mouse.x=-9999;mouse.y=-9999});
+  resize();
+  // Initial clear
+  x.fillStyle='#000';x.fillRect(0,0,W,H);
+  draw();
+})();
+</script>
+</body>
+</html>
